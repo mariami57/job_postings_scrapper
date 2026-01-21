@@ -18,51 +18,40 @@ TO_EMAIL = config('TO_EMAIL')
 
 SEEN_JOBS_FILE = 'seen_jobs.json'
 
-if os.path.exists(SEEN_JOBS_FILE):
-    with open(SEEN_JOBS_FILE, 'r') as f:
-        seen_jobs = set(json.load(f))
-else:
-    seen_jobs = set()
-
-
-urls = [
-    'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
-    'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior'
-        ]
-
-
-headers = {
-    'User-Agent': 'Mozilla/5.0 (compatible; JobScraper/1.0)'
-}
-
-responses = []
-
 JOB_CARD_SELECTOR = {'tag': 'div','class': 'job-list-item'}
 JOB_CONTAINER = {'tag': 'div', 'class': 'job-card'}
 TITLE_TAG = 'h6'
 COMPANY_SELECTOR = {'tag': 'div', 'class': 'company-logo-wrap'}
 LINK_SELECTOR = {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
 
-for url in urls:
+def load_seen_jobs():
+    if os.path.exists(SEEN_JOBS_FILE):
+        try:
+            with open(SEEN_JOBS_FILE, 'r') as f:
+                return set(json.load(f))
+        except json.JSONDecodeError:
+            logging.warning('seen_jobs.json is empty or corrupted. Starting fresh.')
+    return set()
+
+def scrape_jobs(url, seen_jobs):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (compatible; JobScraper/1.0)'
+    }
 
     response = requests.get(url, headers=headers, timeout=10)
-    responses.append(response)
-
-    parsed_url = urlparse(url)
-    source = parsed_url.netloc
-
 
     soup = BeautifulSoup(response.text, 'html.parser')
     job_cards = soup.find_all(JOB_CARD_SELECTOR['tag'],
-                class_=JOB_CARD_SELECTOR['class'])
+                              class_=JOB_CARD_SELECTOR['class'])
 
     if not job_cards:
         logging.warning('No job cards found — page structure may have changed')
 
     logging.info(f'Found {len(job_cards)} for jobs on {url}')
 
+    parsed_url = urlparse(url)
+    source = parsed_url.netloc
     jobs_list = []
-
     for job in job_cards:
         title_elem = job.find(TITLE_TAG)
         company_elem = job.find(LINK_SELECTOR['tag'], class_=COMPANY_SELECTOR['class'])
@@ -78,31 +67,54 @@ for url in urls:
             jobs_list.append({'title': title, 'link': link, 'source': source})
             seen_jobs.add(link)
 
-    if jobs_list:
-        env = Environment(loader=FileSystemLoader('.'))
-        template = env.get_template('email_template.html')
-        html_body = template.render(jobs=jobs_list)
+    return jobs_list
+
+def collect_all_jobs(urls, seen_jobs):
+    all_new_jobs = []
+    for url in urls:
+        new_jobs = scrape_jobs(url, seen_jobs)
+        all_new_jobs.extend(new_jobs)
+    return all_new_jobs
 
 
-        msg = MIMEMultipart()
-        msg['From'] = EMAIL_ADDRESS
-        msg['To'] = TO_EMAIL
-        msg['Subject'] = f'New Python Job Postings ({len(jobs_list)})'
-        msg.attach(MIMEText(html_body, 'html'))
-
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            smtp.send_message(msg)
-        logging.info(f'Sent email with {len(jobs_list)} new jobs')
-    else:
+def send_email(new_jobs):
+    if not new_jobs:
         logging.info('No new jobs to send')
+        return
 
-    logging.info(f'New jobs found: {len(jobs_list)}')
-    for job in jobs_list:
-        logging.info(job['title'])
+    env = Environment(loader=FileSystemLoader('.'))
+    template = env.get_template('email_template.html')
+    html_body = template.render(jobs=new_jobs)
 
-with open(SEEN_JOBS_FILE, 'w') as f:
-    json.dump(list(seen_jobs), f)
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = TO_EMAIL
+    msg['Subject'] = f'New Python Job Postings ({len(new_jobs)})'
+    msg.attach(MIMEText(html_body, 'html'))
 
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
+    logging.info(f'Sent email with {len(new_jobs)} new jobs')
+
+def main():
+
+    urls = [
+        'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
+        'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior'
+            ]
+
+    seen_jobs = load_seen_jobs()
+    new_jobs = collect_all_jobs(urls, seen_jobs)
+    save_seen_jobs(seen_jobs)
+    send_email(new_jobs)
+
+
+def save_seen_jobs(seen_jobs):
+    with open(SEEN_JOBS_FILE, 'w') as f:
+        json.dump(list(seen_jobs), f)
+
+if __name__ == '__main__':
+    main()
 
 
