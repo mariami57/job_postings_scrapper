@@ -3,15 +3,17 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from decouple import config
+
 logging.basicConfig(level=logging.INFO)
 import requests
 from bs4 import BeautifulSoup
 import json
 import os
 
-EMAIL_ADDRESS = os.getenv('EMAIL_ADDRESS')
-EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
-TO_EMAIL = os.getenv('TO_EMAIL')
+EMAIL_ADDRESS = config('EMAIL_ADDRESS')
+EMAIL_PASSWORD = config('EMAIL_PASSWORD')
+TO_EMAIL = config('TO_EMAIL')
 
 
 SEEN_JOBS_FILE = 'seen_jobs.json'
@@ -72,10 +74,6 @@ for url in urls:
             jobs_list.append({'title': title, 'link': link})
             seen_jobs.add(link)
 
-
-    with open(SEEN_JOBS_FILE, 'w') as f:
-        json.dump(list(seen_jobs), f)
-
     if jobs_list:
         body = ''
         for new_job in jobs_list:
@@ -87,23 +85,18 @@ for url in urls:
         msg.attach(MIMEText(body, 'plain'))
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            print("EMAIL_ADDRESS:", EMAIL_ADDRESS)
-            print("EMAIL_PASSWORD:", EMAIL_PASSWORD)
-            print("TO_EMAIL:", TO_EMAIL)
             smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            # smtp.send_message(msg)
+            smtp.send_message(msg)
         logging.info(f'Sent email with {len(jobs_list)} new jobs')
     else:
-        print('No new jobs to send')
-
-
-
-
+        logging.info('No new jobs to send')
 
     logging.info(f'New jobs found: {len(jobs_list)}')
     for job in jobs_list:
         logging.info(job['title'])
 
+with open(SEEN_JOBS_FILE, 'w') as f:
+    json.dump(list(seen_jobs), f)
 
 
 
