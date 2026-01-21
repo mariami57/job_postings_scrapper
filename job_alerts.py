@@ -1,5 +1,6 @@
 import logging
 import smtplib
+from collections import defaultdict
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
@@ -82,9 +83,14 @@ def send_email(new_jobs):
         logging.info('No new jobs to send')
         return
 
-    env = Environment(loader=FileSystemLoader('.'))
+    jobs_by_site = defaultdict(list)
+    for job in new_jobs:
+        jobs_by_site[job['source']].append(job)
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    env = Environment(loader=FileSystemLoader(BASE_DIR))
     template = env.get_template('email_template.html')
-    html_body = template.render(jobs=new_jobs)
+    html_body = template.render(jobs_by_site=jobs_by_site)
 
     msg = MIMEMultipart()
     msg['From'] = EMAIL_ADDRESS

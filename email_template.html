@@ -6,12 +6,18 @@
   </head>
   <body style="font-family: Arial, sans-serif; font-size: 14px;">
     <h2>New Junior Python Job Postings</h2>
-    <ul>
-      {% for job in jobs %}
-        <li style="margin-bottom: 5px;">
-          <strong>{{ job.title }}</strong> from {{ job.source }}: <a href="{{ job.link }}">Apply here</a>
-        </li>
+
+      {% for site, jobs in jobs_by_site.items() %}
+         <h3>{{ site }}</h3>
+        <ul>
+          {% for job in jobs %}
+            <li style="margin-bottom: 5px;">
+              <strong>{{ job.title }}</strong> from {{ job.source }}: <a href="{{ job.link }}">Apply here</a>
+            </li>
+          {% endfor %}
+
+        </ul>
       {% endfor %}
-    </ul>
+      <p style="font-size: 12px; color: gray;">This is an automated job alert.</p>
   </body>
 </html>
