@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>New Job Postings</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; font-size: 14px;">
+    <h2>New Junior Python Job Postings</h2>
+    <ul>
+      {% for job in jobs %}
+        <li style="margin-bottom: 5px;">
+          <strong>{{ job.title }}</strong> from {{ job.source }}: <a href="{{ job.link }}">Apply here</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>

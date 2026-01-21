@@ -2,14 +2,14 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
+from urllib.parse import urlparse
 from decouple import config
-
 logging.basicConfig(level=logging.INFO)
 import requests
 from bs4 import BeautifulSoup
 import json
 import os
+from jinja2 import Environment, FileSystemLoader
 
 EMAIL_ADDRESS = config('EMAIL_ADDRESS')
 EMAIL_PASSWORD = config('EMAIL_PASSWORD')
@@ -44,8 +44,12 @@ COMPANY_SELECTOR = {'tag': 'div', 'class': 'company-logo-wrap'}
 LINK_SELECTOR = {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
 
 for url in urls:
+
     response = requests.get(url, headers=headers, timeout=10)
     responses.append(response)
+
+    parsed_url = urlparse(url)
+    source = parsed_url.netloc
 
 
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -71,18 +75,20 @@ for url in urls:
             continue
 
         if link not in seen_jobs:
-            jobs_list.append({'title': title, 'link': link})
+            jobs_list.append({'title': title, 'link': link, 'source': source})
             seen_jobs.add(link)
 
     if jobs_list:
-        body = ''
-        for new_job in jobs_list:
-            body += f"New posting for {new_job['title']}, apply here: {new_job['link']}\n\n"
+        env = Environment(loader=FileSystemLoader('.'))
+        template = env.get_template('email_template.html')
+        html_body = template.render(jobs=jobs_list)
+
+
         msg = MIMEMultipart()
         msg['From'] = EMAIL_ADDRESS
         msg['To'] = TO_EMAIL
         msg['Subject'] = f'New Python Job Postings ({len(jobs_list)})'
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
