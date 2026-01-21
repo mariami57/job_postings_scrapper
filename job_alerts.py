@@ -1,11 +1,26 @@
-from venv import logger
 import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 logging.basicConfig(level=logging.INFO)
-
-
-
 import requests
 from bs4 import BeautifulSoup
+import json
+import os
+
+EMAIL_ADDRESS = os.getenv('EMAIL_ADDRESS')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+TO_EMAIL = os.getenv('TO_EMAIL')
+
+
+SEEN_JOBS_FILE = 'seen_jobs.json'
+
+if os.path.exists(SEEN_JOBS_FILE):
+    with open(SEEN_JOBS_FILE, 'r') as f:
+        seen_jobs = set(json.load(f))
+else:
+    seen_jobs = set()
 
 
 urls = [
@@ -20,12 +35,7 @@ headers = {
 
 responses = []
 
-JOB_CARD_SELECTOR = {
-    "tag": "div",
-    "class": "job-list-item"
-}
-
-
+JOB_CARD_SELECTOR = {'tag': 'div','class': 'job-list-item'}
 JOB_CONTAINER = {'tag': 'div', 'class': 'job-card'}
 TITLE_TAG = 'h6'
 COMPANY_SELECTOR = {'tag': 'div', 'class': 'company-logo-wrap'}
@@ -55,9 +65,45 @@ for url in urls:
         title = title_elem.text.strip() if title_elem else None
         link = link_elem['href'] if link_elem else None
 
-        jobs_list.append({'title': title, 'link': link})
         if not title or not link:
             continue
+
+        if link not in seen_jobs:
+            jobs_list.append({'title': title, 'link': link})
+            seen_jobs.add(link)
+
+
+    with open(SEEN_JOBS_FILE, 'w') as f:
+        json.dump(list(seen_jobs), f)
+
+    if jobs_list:
+        body = ''
+        for new_job in jobs_list:
+            body += f"New posting for {new_job['title']}, apply here: {new_job['link']}\n\n"
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_ADDRESS
+        msg['To'] = TO_EMAIL
+        msg['Subject'] = f'New Python Job Postings ({len(jobs_list)})'
+        msg.attach(MIMEText(body, 'plain'))
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            print("EMAIL_ADDRESS:", EMAIL_ADDRESS)
+            print("EMAIL_PASSWORD:", EMAIL_PASSWORD)
+            print("TO_EMAIL:", TO_EMAIL)
+            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            # smtp.send_message(msg)
+        logging.info(f'Sent email with {len(jobs_list)} new jobs')
+    else:
+        print('No new jobs to send')
+
+
+
+
+
+    logging.info(f'New jobs found: {len(jobs_list)}')
+    for job in jobs_list:
+        logging.info(job['title'])
+
 
 
 
