@@ -2,9 +2,8 @@ name: Job Alerts Scraper
 
 on:
   schedule:
-    # Runs at 11:00 and 16:00 UTC
-    - cron: '0 11,16 * * *'
-  workflow_dispatch:  # allows manual runs from GitHub UI
+    - cron: '0 11,16 * * *'   # runs at 11:00 and 16:00 UTC
+  workflow_dispatch:
 
 jobs:
   scrape-and-email:
