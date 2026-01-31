@@ -5,6 +5,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
 from decouple import config
+
+from helpers import get_title_selector
+
 logging.basicConfig(level=logging.INFO)
 import requests
 from bs4 import BeautifulSoup
@@ -56,6 +59,10 @@ def scrape_jobs(url, seen_jobs):
 
     rules = SCRAPING_RULES[domain]
 
+    title_tag, title_class = get_title_selector(rules, domain)
+    if not title_tag:
+        return []
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (compatible; JobScraper/1.0)'
     }
@@ -75,12 +82,12 @@ def scrape_jobs(url, seen_jobs):
     source = parsed_url.netloc
     jobs_list = []
     for job in job_cards:
-        title_elem = job.find(rules.get('title_tag') or rules['title']['tag'], class_=rules['title'].get('class'))
+        title_elem = job.find(title_tag, class_=title_class)
         company_elem = job.find(rules['company']['tag'], class_=rules['company']['class'])
         link_elem = job.find(rules['link']['tag'], class_=rules['link']['class'], href=True)
 
         title = title_elem.text.strip() if title_elem else None
-        link = link_elem[rules['link']['tag']], class_=rules['link']['class'] if link_elem else None
+        link = link_elem[rules['link']['attr']] if link_elem else None
 
         if not title or not link:
             continue
@@ -129,7 +136,8 @@ def main():
     urls = [
         'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior',
-        'https://dev.bg/company/jobs/junior-intern/'
+        'https://dev.bg/company/jobs/junior-intern/',
+        'https://www.jobs.bg/front_job_search.php?subm=1&categories%5B%5D=56&techs%5B%5D=Python&job_type%5B%5D=4&is_entry_level=1'
             ]
 
     seen_jobs = load_seen_jobs()
