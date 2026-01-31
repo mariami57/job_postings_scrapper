@@ -107,7 +107,8 @@ def main():
 
     urls = [
         'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
-        'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior'
+        'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior',
+        'https://dev.bg/company/jobs/junior-intern/'
             ]
 
     seen_jobs = load_seen_jobs()
