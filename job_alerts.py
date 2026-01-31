@@ -19,11 +19,23 @@ TO_EMAIL = config('TO_EMAIL')
 
 SEEN_JOBS_FILE = 'seen_jobs.json'
 
-JOB_CARD_SELECTOR = {'tag': 'div','class': 'job-list-item'}
-JOB_CONTAINER = {'tag': 'div', 'class': 'job-card'}
-TITLE_TAG = 'h6'
-COMPANY_SELECTOR = {'tag': 'div', 'class': 'company-logo-wrap'}
-LINK_SELECTOR = {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
+SCRAPING_RULES = {
+    'dev.bg': {
+        'job_card': {'tag': 'div','class': 'job-list-item'},
+        'job_container': {'tag': 'div', 'class': 'job-card'},
+        'title_tag': 'h6',
+        'company': {'tag': 'div', 'class': 'company-logo-wrap'},
+        'link':  {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
+    },
+
+    'jobs.bg': {
+        'job_card': {'tag': 'div', 'class': 'mdc-layout-grid'},
+        'title': {'tag': 'div', 'class': 'card-title'},
+        'company': {'tag': 'div', 'class': 'secondary-text'},
+        'link': {'tag': 'a', 'attr': 'href', 'class': 'mdc-layout-link'}
+    }
+}
+
 
 def load_seen_jobs():
     if os.path.exists(SEEN_JOBS_FILE):
@@ -35,6 +47,15 @@ def load_seen_jobs():
     return set()
 
 def scrape_jobs(url, seen_jobs):
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc
+
+    if domain not in SCRAPING_RULES:
+        logging.warning(f'No scraping rules found for {domain}, skipping...')
+        return []
+
+    rules = SCRAPING_RULES[domain]
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (compatible; JobScraper/1.0)'
     }
@@ -42,8 +63,8 @@ def scrape_jobs(url, seen_jobs):
     response = requests.get(url, headers=headers, timeout=10)
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    job_cards = soup.find_all(JOB_CARD_SELECTOR['tag'],
-                              class_=JOB_CARD_SELECTOR['class'])
+    job_cards = soup.find_all(rules['job_card']['tag'],
+                              class_=rules['job_card']['class'])
 
     if not job_cards:
         logging.warning('No job cards found — page structure may have changed')
@@ -54,12 +75,12 @@ def scrape_jobs(url, seen_jobs):
     source = parsed_url.netloc
     jobs_list = []
     for job in job_cards:
-        title_elem = job.find(TITLE_TAG)
-        company_elem = job.find(LINK_SELECTOR['tag'], class_=COMPANY_SELECTOR['class'])
-        link_elem = job.find(LINK_SELECTOR['tag'], class_=LINK_SELECTOR['class'], href=True)
+        title_elem = job.find(rules.get('title_tag') or rules['title']['tag'], class_=rules['title'].get('class'))
+        company_elem = job.find(rules['company']['tag'], class_=rules['company']['class'])
+        link_elem = job.find(rules['link']['tag'], class_=rules['link']['class'], href=True)
 
         title = title_elem.text.strip() if title_elem else None
-        link = link_elem['href'] if link_elem else None
+        link = link_elem[rules['link']['tag']], class_=rules['link']['class'] if link_elem else None
 
         if not title or not link:
             continue
