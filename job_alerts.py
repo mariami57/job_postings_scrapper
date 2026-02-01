@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from urllib.parse import urlparse
 from decouple import config
 
-from helpers import get_title_selector
+from helpers import get_title_selector, fetch_html
 
 logging.basicConfig(level=logging.INFO)
 import requests
@@ -65,13 +65,10 @@ def scrape_jobs(url, seen_jobs):
     if not title_tag:
         return []
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (compatible; JobScraper/1.0)'
-    }
+    rules = SCRAPING_RULES[domain]
 
-    response = requests.get(url, headers=headers, timeout=10)
-
-    soup = BeautifulSoup(response.text, 'html.parser')
+    html = fetch_html(url, use_selenium=rules.get('use_selenium', False))
+    soup = BeautifulSoup(html, 'html.parser')
     job_cards = soup.find_all(rules['job_card']['tag'],
                               class_=rules['job_card']['class'])
 
