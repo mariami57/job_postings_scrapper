@@ -14,6 +14,9 @@ import json
 import os
 from jinja2 import Environment, FileSystemLoader
 
+IS_CI = os.getenv('GITHUB_ACTIONS') == 'true'
+DRY_RUN = config('DRY_RUN', default=False, cast=bool)
+
 EMAIL_ADDRESS = config('EMAIL_ADDRESS')
 EMAIL_PASSWORD = config('EMAIL_PASSWORD')
 TO_EMAIL = config('TO_EMAIL')
@@ -60,28 +63,26 @@ def scrape_jobs(url, seen_jobs):
 
     rules = SCRAPING_RULES[domain]
 
+    if rules.get('use_selenium') and IS_CI:
+        logging.info(f'Skipping {domain} (Selenium disabled in CI)')
+        return []
+
     title_tag, title_class = get_title_selector(rules, domain)
     if not title_tag:
         return []
 
-    rules = SCRAPING_RULES[domain]
 
     html = fetch_html(url, use_selenium=rules.get('use_selenium', False))
     soup = BeautifulSoup(html, 'html.parser')
     job_cards = soup.find_all(rules['job_card']['tag'],
                               class_=rules['job_card']['class'])
 
-    if not job_cards:
-        logging.warning('No job cards found — page structure may have changed')
 
     logging.info(f'Found {len(job_cards)} for jobs on {url}')
 
-    parsed_url = urlparse(url)
-    source = parsed_url.netloc
     jobs_list = []
     for job in job_cards:
         title_elem = job.find(title_tag, class_=title_class)
-        company_elem = job.find(rules['company']['tag'], class_=rules['company']['class'])
         link_elem = job.find(rules['link']['tag'], class_=rules['link']['class'], href=True)
 
         title = title_elem.text.strip() if title_elem else None
@@ -91,7 +92,7 @@ def scrape_jobs(url, seen_jobs):
             continue
 
         if link not in seen_jobs:
-            jobs_list.append({'title': title, 'link': link, 'source': source})
+            jobs_list.append({'title': title, 'link': link, 'source': domain})
             seen_jobs.add(link)
 
     return jobs_list
@@ -107,6 +108,12 @@ def collect_all_jobs(urls, seen_jobs):
 def send_email(new_jobs):
     if not new_jobs:
         logging.info('No new jobs to send')
+        return
+
+    if DRY_RUN:
+        logging.info('Dry run enabled - email will not be sent')
+        for job in new_jobs:
+            logging.info(f'[DRY RUN] {job['source']} | {job['title']} | {job['link']}')
         return
 
     jobs_by_site = defaultdict(list)
@@ -140,7 +147,12 @@ def main():
 
     seen_jobs = load_seen_jobs()
     new_jobs = collect_all_jobs(urls, seen_jobs)
-    save_seen_jobs(seen_jobs)
+
+    if not DRY_RUN:
+        save_seen_jobs(seen_jobs)
+    else:
+        logging.info('DRY RUN — seen_jobs.json not updated')
+
     send_email(new_jobs)
 
 

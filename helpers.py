@@ -3,9 +3,9 @@ import time
 
 import requests
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.firefox.options import Options
+from webdriver_manager.firefox import GeckoDriverManager
 
 
 def get_title_selector(rules, domain):
@@ -28,10 +28,10 @@ def fetch_html(url, use_selenium=False):
 
     options = Options()
     options.add_argument('--headless')
-    options.add_argument('-disable-blink-features=AutomationControlled')
+    options.binary_location = '/usr/bin/firefox'
 
-    driver = webdriver.Chrome(
-    service=Service(ChromeDriverManager().install()),
+    driver = webdriver.Firefox(
+    service=Service(GeckoDriverManager().install()),
     options=options)
 
     driver.get(url)
