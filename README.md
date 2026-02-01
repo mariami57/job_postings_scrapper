@@ -109,6 +109,29 @@ job_postings_scrapper/
 
 - Email formatting and sending
 
+## Notes on scraping & CI environments
+
+Some job boards (e.g. jobs.bg) rely heavily on JavaScript and are protected by services like Cloudflare.
+Because of this, they cannot be reliably scraped using plain HTTP requests.
+
+To handle this:
+
+- dev.bg is scraped using requests + BeautifulSoup
+
+- jobs.bg is scraped locally using Selenium (headless Chrome)
+
+- When running in CI environments (such as GitHub Actions), Selenium-based scraping is automatically skipped
+
+This design ensures that:
+
+- The GitHub Actions workflow runs reliably
+
+- Local development can still scrape JavaScript-heavy websites
+
+- The project avoids brittle or blocked CI executions
+
+This behavior is intentional and reflects real-world scraping constraints.
+
 ## License
 
 MIT License

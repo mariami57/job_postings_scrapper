@@ -9,7 +9,6 @@ from decouple import config
 from helpers import get_title_selector, fetch_html
 
 logging.basicConfig(level=logging.INFO)
-import requests
 from bs4 import BeautifulSoup
 import json
 import os
