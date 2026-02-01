@@ -24,6 +24,7 @@ SEEN_JOBS_FILE = 'seen_jobs.json'
 
 SCRAPING_RULES = {
     'dev.bg': {
+        'use_selenium': False,
         'job_card': {'tag': 'div','class': 'job-list-item'},
         'job_container': {'tag': 'div', 'class': 'job-card'},
         'title_tag': 'h6',
@@ -31,8 +32,9 @@ SCRAPING_RULES = {
         'link':  {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
     },
 
-    'jobs.bg': {
-        'job_card': {'tag': 'div', 'class': 'mdc-layout-grid'},
+    'www.jobs.bg': {
+        'use_selenium': True,
+        'job_card': {'tag': 'div', 'class': 'mdc-card '},
         'title': {'tag': 'div', 'class': 'card-title'},
         'company': {'tag': 'div', 'class': 'secondary-text'},
         'link': {'tag': 'a', 'attr': 'href', 'class': 'mdc-layout-link'}
