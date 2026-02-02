@@ -113,7 +113,7 @@ def send_email(new_jobs):
     if DRY_RUN:
         logging.info('Dry run enabled - email will not be sent')
         for job in new_jobs:
-            logging.info(f'[DRY RUN] {job['source']} | {job['title']} | {job['link']}')
+            logging.info(f"[DRY RUN] {job['source']} | {job['title']} | {job['link']}")
         return
 
     jobs_by_site = defaultdict(list)
