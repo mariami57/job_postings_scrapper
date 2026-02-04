@@ -118,7 +118,7 @@ To handle this:
 
 - dev.bg is scraped using requests + BeautifulSoup
 
-- jobs.bg is scraped locally using Selenium (headless Chrome)
+- jobs.bg is scraped locally using Selenium
 
 - When running in CI environments (such as GitHub Actions), Selenium-based scraping is automatically skipped
 
