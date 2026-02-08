@@ -21,6 +21,13 @@ EMAIL_ADDRESS = config('EMAIL_ADDRESS')
 EMAIL_PASSWORD = config('EMAIL_PASSWORD')
 TO_EMAIL = config('TO_EMAIL')
 
+logging.warning(f"DRY_RUN = {DRY_RUN}, IS_CI = {IS_CI}")
+
+logging.warning(
+    f"EMAIL_ADDRESS set: {bool(EMAIL_ADDRESS)}, "
+    f"EMAIL_PASSWORD set: {bool(EMAIL_PASSWORD)}, "
+    f"TO_EMAIL set: {bool(TO_EMAIL)}"
+)
 
 SEEN_JOBS_FILE = 'seen_jobs.json'
 
@@ -109,7 +116,7 @@ def collect_all_jobs(urls, seen_jobs):
 
 
 def send_email(new_jobs):
-
+    logging.warning("ENTERED send_email()")
     if DRY_RUN:
         logging.info('Dry run enabled - email will not be sent')
         for job in new_jobs:
@@ -140,6 +147,7 @@ def send_email(new_jobs):
     msg.attach(MIMEText(html_body, 'html'))
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.set_debuglevel(1)
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(msg)
 
