@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: seen_jobs.json
-          key: seen-jobs-cache
+          key: seen-jobs-cache-v2
 
       - name: Install dependencies
         run: |
@@ -35,8 +35,7 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
-          DRY_RUN: False
-          PYTHONUNBUFFERED: 1
+          DRY_RUN: false
         run: |
           python job_alerts.py
 

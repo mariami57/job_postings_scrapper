@@ -5,9 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
 from decouple import config
-
 from helpers import get_title_selector, fetch_html
-
 logging.basicConfig(level=logging.INFO)
 from bs4 import BeautifulSoup
 import json
@@ -21,21 +19,12 @@ EMAIL_ADDRESS = config('EMAIL_ADDRESS')
 EMAIL_PASSWORD = config('EMAIL_PASSWORD')
 TO_EMAIL = config('TO_EMAIL')
 
-logging.warning(f"DRY_RUN = {DRY_RUN}, IS_CI = {IS_CI}")
-
-logging.warning(
-    f"EMAIL_ADDRESS set: {bool(EMAIL_ADDRESS)}, "
-    f"EMAIL_PASSWORD set: {bool(EMAIL_PASSWORD)}, "
-    f"TO_EMAIL set: {bool(TO_EMAIL)}"
-)
-
 SEEN_JOBS_FILE = 'seen_jobs.json'
 
 SCRAPING_RULES = {
     'dev.bg': {
-        'use_selenium': False,
         'job_card': {'tag': 'div','class': 'job-list-item'},
-        'title_tag': 'h6',
+        'title': {'tag': 'h6', 'class': 'job-title'},
         'company': {'tag': 'div', 'class': 'company-logo-wrap'},
         'link':  {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
     },
@@ -88,7 +77,7 @@ def scrape_jobs(url, seen_jobs):
 
     jobs_list = []
     for job in job_cards:
-        title_elem = job.find(title_tag, class_=title_class)
+        title_elem = job.find(rules['title']['tag'], class_=rules['title']['class'])
         link_elem = job.find(rules['link']['tag'], class_=rules['link']['class'], href=True)
 
         title = title_elem.text.strip() if title_elem else None
@@ -118,16 +107,9 @@ def collect_all_jobs(urls, seen_jobs):
 def send_email(new_jobs):
 
     if not new_jobs:
-        if IS_CI:
-            logging.warning("🚨 CI forced email test")
-            new_jobs = [{
-                "title": "GitHub Actions Email Test",
-                "link": "https://example.com",
-                "source": "ci-test"
-            }]
-        else:
-            logging.info("No new jobs to send, skipping email")
-            return
+        logging.info("No new jobs to send, skipping email")
+        return
+
 
     logging.info(f"Preparing to send email with {len(new_jobs)} jobs to {TO_EMAIL}")
 
@@ -146,12 +128,6 @@ def send_email(new_jobs):
     msg['Subject'] = f'New Job Postings ({len(new_jobs)})'
     msg.attach(MIMEText(html_body, 'html'))
 
-    if DRY_RUN:
-        logging.info("DRY RUN enabled - email not sent")
-        for job in new_jobs:
-            logging.info(f"[DRY RUN] {job['source']} | {job['title']} | {job['link']}")
-        return
-
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             logging.info(f"Connecting to SMTP as {EMAIL_ADDRESS}")
@@ -167,19 +143,12 @@ def main():
         'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/junior-intern/',
-        'https://www.jobs.bg/front_job_search.php?subm=1&categories%5B%5D=56&techs%5B%5D=Python&job_type%5B%5D=4&is_entry_level=1'
     ]
 
     seen_jobs = load_seen_jobs()
     new_jobs = collect_all_jobs(urls, seen_jobs)
 
     logging.info(f"Collected {len(new_jobs)} new jobs from scraping")
-
-    if not DRY_RUN:
-        save_seen_jobs(seen_jobs)
-    else:
-        logging.info("DRY RUN — seen_jobs.json not updated")
-
 
     send_email(new_jobs)
 
