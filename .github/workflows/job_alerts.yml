@@ -25,6 +25,7 @@ jobs:
           path: seen_jobs.json
           key: seen-jobs-cache-v3
 
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -36,12 +37,6 @@ jobs:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           DRY_RUN: 'False'
+          ACTIONS_STEP_DEBUG: 'true'
         run: |
           python job_alerts.py
-
-
-      - name: Save seen jobs cache
-        uses: actions/cache@v4
-        with:
-          path: seen_jobs.json
-          key: seen-jobs-cache

@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
 from decouple import config
-from helpers import get_title_selector, fetch_html
+from helpers import fetch_html
 logging.basicConfig(level=logging.INFO)
 from bs4 import BeautifulSoup
 import json
@@ -13,7 +13,7 @@ import os
 from jinja2 import Environment, FileSystemLoader
 
 IS_CI = os.getenv('GITHUB_ACTIONS') == 'true'
-DRY_RUN = config('DRY_RUN', default=False, cast=bool)
+DRY_RUN = False if IS_CI else config('DRY_RUN', default=False, cast=bool)
 
 EMAIL_ADDRESS = config('EMAIL_ADDRESS')
 EMAIL_PASSWORD = config('EMAIL_PASSWORD')
@@ -62,12 +62,11 @@ def scrape_jobs(url, seen_jobs):
         logging.info(f'Skipping {domain} (Selenium disabled in CI)')
         return []
 
-    title_tag, title_class = get_title_selector(rules, domain)
-    if not title_tag:
-        return []
-
 
     html = fetch_html(url, use_selenium=rules.get('use_selenium', False))
+    if IS_CI:
+        logging.info(f"DEBUG: HTML snippet for {domain}: {html[:500]}")
+
     soup = BeautifulSoup(html, 'html.parser')
     job_cards = soup.find_all(rules['job_card']['tag'],
                               class_=rules['job_card']['class'])
@@ -89,6 +88,9 @@ def scrape_jobs(url, seen_jobs):
         if link not in seen_jobs:
             jobs_list.append({'title': title, 'link': link, 'source': domain})
             seen_jobs.add(link)
+
+            logging.info(f"New job collected: {title} | {link}")
+
 
     logging.info(
         f"Collected {len(jobs_list)} NEW jobs (after filtering seen_jobs)"
@@ -143,6 +145,7 @@ def main():
         'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/junior-intern/',
+        "https://www.jobs.bg/front_job_search.php?subm=1&categories%5B%5D=56&techs%5B%5D=Python&job_type%5B%5D=4&is_entry_level=1"
     ]
 
     seen_jobs = load_seen_jobs()
@@ -151,9 +154,7 @@ def main():
     logging.info(f"Collected {len(new_jobs)} new jobs from scraping")
 
     send_email(new_jobs)
-
-
-
+    save_seen_jobs(seen_jobs)
 
 def save_seen_jobs(seen_jobs):
     with open(SEEN_JOBS_FILE, 'w') as f:
