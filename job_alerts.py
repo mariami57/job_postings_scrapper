@@ -116,20 +116,20 @@ def collect_all_jobs(urls, seen_jobs):
 
 
 def send_email(new_jobs):
-    logging.warning("ENTERED send_email()")
-    if DRY_RUN:
-        logging.info('Dry run enabled - email will not be sent')
-        for job in new_jobs:
-            logging.info(f"[DRY RUN] {job['source']} | {job['title']} | {job['link']}")
-        return
 
     if not new_jobs:
-        logging.warning("DEBUG: Forcing email send with dummy job")
-        new_jobs = [{
-            "title": "DEBUG JOB – email test",
-            "link": "https://example.com",
-            "source": "debug"
-        }]
+        if IS_CI:
+            logging.warning("🚨 CI forced email test")
+            new_jobs = [{
+                "title": "GitHub Actions Email Test",
+                "link": "https://example.com",
+                "source": "ci-test"
+            }]
+        else:
+            logging.info("No new jobs to send, skipping email")
+            return
+
+    logging.info(f"Preparing to send email with {len(new_jobs)} jobs to {TO_EMAIL}")
 
     jobs_by_site = defaultdict(list)
     for job in new_jobs:
@@ -146,41 +146,44 @@ def send_email(new_jobs):
     msg['Subject'] = f'New Job Postings ({len(new_jobs)})'
     msg.attach(MIMEText(html_body, 'html'))
 
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        smtp.send_message(msg)
+    if DRY_RUN:
+        logging.info("DRY RUN enabled - email not sent")
+        for job in new_jobs:
+            logging.info(f"[DRY RUN] {job['source']} | {job['title']} | {job['link']}")
+        return
 
-    logging.info(f"Email sent with {len(new_jobs)} jobs")
-
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            logging.info(f"Connecting to SMTP as {EMAIL_ADDRESS}")
+            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+        logging.info(f"Email successfully sent to {TO_EMAIL}")
+    except Exception as e:
+        logging.error(f"Failed to send email: {e}")
 
 
 def main():
-
     urls = [
         'https://dev.bg/company/jobs/python/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/full-stack-development/?_seniority=intern%2Cjunior',
         'https://dev.bg/company/jobs/junior-intern/',
         'https://www.jobs.bg/front_job_search.php?subm=1&categories%5B%5D=56&techs%5B%5D=Python&job_type%5B%5D=4&is_entry_level=1'
-            ]
+    ]
 
     seen_jobs = load_seen_jobs()
     new_jobs = collect_all_jobs(urls, seen_jobs)
 
-    if new_jobs:
-        send_email(new_jobs)
-    else:
-        logging.info("No new jobs found")
+    logging.info(f"Collected {len(new_jobs)} new jobs from scraping")
 
     if not DRY_RUN:
         save_seen_jobs(seen_jobs)
     else:
-        logging.info('DRY RUN — seen_jobs.json not updated')
+        logging.info("DRY RUN — seen_jobs.json not updated")
 
-    logging.warning("🚨 FORCING EMAIL TEST")
-    send_email([])
-    return
 
-    # send_email(new_jobs)
+    send_email(new_jobs)
+
+
 
 
 def save_seen_jobs(seen_jobs):
