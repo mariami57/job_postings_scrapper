@@ -2,7 +2,7 @@ name: Job Alerts Scraper
 
 on:
   schedule:
-    - cron: '0 09,14 * * *'
+    - cron: '0 09,12 * * *'
   workflow_dispatch:
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: seen_jobs.json
-          key: seen-jobs-cache-v3
+          key: seen-jobs-cache-v4
 
 
       - name: Install dependencies
