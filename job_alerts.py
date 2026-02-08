@@ -95,6 +95,10 @@ def scrape_jobs(url, seen_jobs):
             jobs_list.append({'title': title, 'link': link, 'source': domain})
             seen_jobs.add(link)
 
+        logging.info(
+            f"Collected {len(jobs_list)} NEW jobs (after filtering seen_jobs)"
+        )
+
     return jobs_list
 
 def collect_all_jobs(urls, seen_jobs):
@@ -107,7 +111,12 @@ def collect_all_jobs(urls, seen_jobs):
 
 def send_email(new_jobs):
     if not new_jobs:
-        logging.info('No new jobs to send')
+        logging.warning("DEBUG: Forcing email send with dummy job")
+        new_jobs = [{
+            "title": "DEBUG JOB – email test",
+            "link": "https://example.com",
+            "source": "debug"
+        }]
         return
 
     if DRY_RUN:
