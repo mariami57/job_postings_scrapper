@@ -147,7 +147,6 @@ def send_email(new_jobs):
     msg.attach(MIMEText(html_body, 'html'))
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.set_debuglevel(1)
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(msg)
 
