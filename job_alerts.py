@@ -28,7 +28,6 @@ SCRAPING_RULES = {
     'dev.bg': {
         'use_selenium': False,
         'job_card': {'tag': 'div','class': 'job-list-item'},
-        'job_container': {'tag': 'div', 'class': 'job-card'},
         'title_tag': 'h6',
         'company': {'tag': 'div', 'class': 'company-logo-wrap'},
         'link':  {'tag': 'a', 'attr': 'href', 'class': 'overlay-link'}
@@ -36,7 +35,7 @@ SCRAPING_RULES = {
 
     'www.jobs.bg': {
         'use_selenium': True,
-        'job_card': {'tag': 'div', 'class': 'mdc-card '},
+        'job_card': {'tag': 'div', 'class': 'mdc-card'},
         'title': {'tag': 'div', 'class': 'card-title'},
         'company': {'tag': 'div', 'class': 'secondary-text'},
         'link': {'tag': 'a', 'attr': 'href', 'class': 'mdc-layout-link'}
@@ -95,9 +94,9 @@ def scrape_jobs(url, seen_jobs):
             jobs_list.append({'title': title, 'link': link, 'source': domain})
             seen_jobs.add(link)
 
-        logging.info(
-            f"Collected {len(jobs_list)} NEW jobs (after filtering seen_jobs)"
-        )
+    logging.info(
+        f"Collected {len(jobs_list)} NEW jobs (after filtering seen_jobs)"
+    )
 
     return jobs_list
 
@@ -110,6 +109,13 @@ def collect_all_jobs(urls, seen_jobs):
 
 
 def send_email(new_jobs):
+
+    if DRY_RUN:
+        logging.info('Dry run enabled - email will not be sent')
+        for job in new_jobs:
+            logging.info(f"[DRY RUN] {job['source']} | {job['title']} | {job['link']}")
+        return
+
     if not new_jobs:
         logging.warning("DEBUG: Forcing email send with dummy job")
         new_jobs = [{
@@ -117,13 +123,6 @@ def send_email(new_jobs):
             "link": "https://example.com",
             "source": "debug"
         }]
-        return
-
-    if DRY_RUN:
-        logging.info('Dry run enabled - email will not be sent')
-        for job in new_jobs:
-            logging.info(f"[DRY RUN] {job['source']} | {job['title']} | {job['link']}")
-        return
 
     jobs_by_site = defaultdict(list)
     for job in new_jobs:
@@ -137,13 +136,16 @@ def send_email(new_jobs):
     msg = MIMEMultipart()
     msg['From'] = EMAIL_ADDRESS
     msg['To'] = TO_EMAIL
-    msg['Subject'] = f'New Python Job Postings ({len(new_jobs)})'
+    msg['Subject'] = f'New Job Postings ({len(new_jobs)})'
     msg.attach(MIMEText(html_body, 'html'))
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(msg)
-    logging.info(f'Sent email with {len(new_jobs)} new jobs')
+
+    logging.info(f"Email sent with {len(new_jobs)} jobs")
+
+
 
 def main():
 
@@ -157,12 +159,21 @@ def main():
     seen_jobs = load_seen_jobs()
     new_jobs = collect_all_jobs(urls, seen_jobs)
 
+    if new_jobs:
+        send_email(new_jobs)
+    else:
+        logging.info("No new jobs found")
+
     if not DRY_RUN:
         save_seen_jobs(seen_jobs)
     else:
         logging.info('DRY RUN — seen_jobs.json not updated')
 
-    send_email(new_jobs)
+    logging.warning("🚨 FORCING EMAIL TEST")
+    send_email([])
+    return
+
+    # send_email(new_jobs)
 
 
 def save_seen_jobs(seen_jobs):
