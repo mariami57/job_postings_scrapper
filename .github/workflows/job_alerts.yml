@@ -35,7 +35,7 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
-          DRY_RUN: false
+          DRY_RUN: 'False'
         run: |
           python job_alerts.py
 
