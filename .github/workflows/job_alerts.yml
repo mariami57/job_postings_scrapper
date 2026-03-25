@@ -2,7 +2,7 @@ name: Job Alerts Scraper
 
 on:
   schedule:
-    - cron: '0 09,12 * * *'
+    - cron: '0 09 * * *'
   workflow_dispatch:
 
 jobs:

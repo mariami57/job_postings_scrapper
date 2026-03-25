@@ -97,9 +97,11 @@ def scrape_jobs(url, seen_jobs):
             continue
 
         jobs_list.append({'title': title, 'link': link, 'source': domain})
-        seen_jobs.add(link)
+        seen_jobs.add(normalized_link)
+        seen_in_this_run.add(normalized_link)
 
-        logging.info(f"New job collected: {title} | {link}")
+
+        logging.info(f"New job collected: {title} | {normalized_link}")
 
 
     logging.info(
@@ -165,7 +167,6 @@ def main():
     new_jobs = collect_all_jobs(urls, seen_jobs)
 
     logging.info(f"Collected {len(new_jobs)} new jobs from scraping")
-
     send_email(new_jobs)
     save_seen_jobs(seen_jobs)
 
