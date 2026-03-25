@@ -38,13 +38,17 @@ SCRAPING_RULES = {
     }
 }
 
+def normalize_link(link):
+    parsed = urlparse(link)
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
 
 def load_seen_jobs():
     if os.path.exists(SEEN_JOBS_FILE):
         try:
             with open(SEEN_JOBS_FILE, 'r') as f:
                 return set(json.load(f))
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, TypeError):
             logging.warning('seen_jobs.json is empty or corrupted. Starting fresh.')
     return set()
 
@@ -75,6 +79,8 @@ def scrape_jobs(url, seen_jobs):
     logging.info(f'Found {len(job_cards)} for jobs on {url}')
 
     jobs_list = []
+    seen_in_this_run = set()
+
     for job in job_cards:
         title_elem = job.find(rules['title']['tag'], class_=rules['title']['class'])
         link_elem = job.find(rules['link']['tag'], class_=rules['link']['class'], href=True)
@@ -85,11 +91,15 @@ def scrape_jobs(url, seen_jobs):
         if not title or not link:
             continue
 
-        if link not in seen_jobs:
-            jobs_list.append({'title': title, 'link': link, 'source': domain})
-            seen_jobs.add(link)
+        normalized_link = normalize_link(link)
 
-            logging.info(f"New job collected: {title} | {link}")
+        if normalized_link in seen_jobs or normalized_link in seen_in_this_run:
+            continue
+
+        jobs_list.append({'title': title, 'link': link, 'source': domain})
+        seen_jobs.add(link)
+
+        logging.info(f"New job collected: {title} | {link}")
 
 
     logging.info(
@@ -103,7 +113,10 @@ def collect_all_jobs(urls, seen_jobs):
     for url in urls:
         new_jobs = scrape_jobs(url, seen_jobs)
         all_new_jobs.extend(new_jobs)
-    return all_new_jobs
+
+    unique_jobs = {job['link']: job for job in all_new_jobs}
+
+    return list(unique_jobs.values())
 
 
 def send_email(new_jobs):
@@ -157,8 +170,11 @@ def main():
     save_seen_jobs(seen_jobs)
 
 def save_seen_jobs(seen_jobs):
-    with open(SEEN_JOBS_FILE, 'w') as f:
-        json.dump(list(seen_jobs), f)
+    try:
+        with open(SEEN_JOBS_FILE, 'w') as f:
+            json.dump(list(seen_jobs), f, indent=2)
+    except Exception as e:
+        logging.error(f"Failed to save seen jobs: {e}")
 
 if __name__ == '__main__':
     main()
